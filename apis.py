@@ -195,9 +195,9 @@ def train_by_order():
         else:
             print uid+" skip"
 
-def get_results(filmids, n):
+def get_results(filmids, filename):
     '''
-    接受一组电影，输出前n高的结果
+    接受一组电影，输出高于0.615分的书籍
     :param filmids:电影id（数组）
     :param n:输出前n高评价的书
     :return:
@@ -206,7 +206,9 @@ def get_results(filmids, n):
     _net = BPNetwork()
     results = _net.get_results(filmids)
     books = results.items()
-    for i in xrange(n):
+    limit = 1.0
+    i = 0
+    while limit > 0.615:
         maxvalue = 0.0
         maxposition = 0
         for j in xrange(i, len(books)):
@@ -214,12 +216,14 @@ def get_results(filmids, n):
                 maxvalue = books[j][1]
                 maxposition = j
         books[maxposition], books[i] = books[i], books[maxposition]
-    myfile = file("src/bpnetwork/Logging/res_1.txt", "a+")
+        limit = float(maxvalue)
+        i += 1
+    myfile = file(filename, "a+")
     myfile.write("#"+str(filmids)+"\n")
-    for i in xrange(n):
-        book_name = _db.select_book_name(books[i][0])
-        line = "%s,%s\n"%(books[i][0], books[i][1])
-        myfile.write(line)
+    for j in xrange(i):
+        book_name = _db.select_book_name(books[j][0])
+        myfile.write(book_name.encode("utf-8"))
+        myfile.write(";%s;%s\n"%(books[j][0], books[j][1]))
 
 def get_avg_results():
     '''获取平均结果'''
@@ -243,9 +247,8 @@ def get_avg_results():
     with file("src/bpnetwork/Logging/avg_res.txt", "a+") as myfile:
         for k in xrange(i):
             book_name = _db.select_book_name(books[k][0])
-            print book_name
-            myfile.write("%s,%s\n"%(books[k][0], books[k][1]))
-
+            myfile.write(book_name.encode("utf-8"))
+            myfile.write(";%s;%s\n"%(books[k][0], books[k][1]))
 
 def get_simple_results(filmids):
     _net = BPNetwork()
