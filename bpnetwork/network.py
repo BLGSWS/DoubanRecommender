@@ -6,8 +6,6 @@ import numpy as np
 
 import sys
 
-sys.path.append("C:\WorkSpace\DoubanDistribution\src")
-
 from db.sqldb import DataBase
 
 filterwarnings('error', category = MySQLdb.Warning)
@@ -47,18 +45,22 @@ class BPNetwork(DataBase):
         except MySQLdb.Warning as e:
             print "Database: tables of bpnetwork already existed"
 
-        self.film_hidden_matrix = np.array([[]])
-        self.hidden_book_matrix = np.array([[]])
+        self.uid = None
+        self.step = None#下降步长
 
-        self.film_output = np.array([])
-        self.hidden_output = np.array([])
-        self.book_output = np.array([])
+        self.film_hidden_matrix = np.array([[]])#输入层至隐藏层连接强度
+        self.hidden_book_matrix = np.array([[]])#隐藏层至输出层连接强度
 
-        self.hidden_node = []
+        self.film_output = np.array([])#输入
+        self.hidden_output = np.array([])#隐藏层输出
+        self.book_output = np.array([])#输出层输出
 
-        self.hidden_threshold = np.array([])
-        self.book_threshold = np.array([])
+        self.hidden_node = []#隐藏层节点
 
+        self.hidden_threshold = np.array([])#隐藏层阈值
+        self.book_threshold = np.array([])#输出层阈值
+
+        #本轮训练不更新的连接
         self.hidden_book_zeros = {}
         self.film_hidden_zeros = {}
 
@@ -181,6 +183,7 @@ class BPNetwork(DataBase):
             :param films：电影列表
             :param books：书籍列表'''
         hiddennodelist = {}
+        #获取与
         for film in films:
             self.cursor.execute("select toid from filmtohidden where fromid='%s'"%film)
             results = self.cursor.fetchall()
@@ -246,6 +249,7 @@ class BPNetwork(DataBase):
         return matrix
 
     def get_hiddenbook_matrix(self, hiddens):
+        '''数据量过大情况下，效率更高的矩阵建立方式'''
         books = self.get_books(hiddens)
         matrix = np.zeros([len(hiddens), len(books)])
         i = 0
@@ -264,12 +268,6 @@ class BPNetwork(DataBase):
         hiddens = self.get_hiddennodes(films, [])
         books = self.get_books(hiddens)
         #print "books:%d"%len(books)
-        '''film_hidden_matrix = [[self.get_matrix_strength(film, hidden, 0)
-                               for hidden in hiddens]
-                              for film in films]
-        hidden_book_matrix = [[self.get_matrix_strength(hidden, book, 1)
-                               for book in books]
-                              for hidden in hiddens]'''
         self.hidden_threshold = self.get_threshold_strength(hiddens, 0)
         self.book_threshold = self.get_threshold_strength(books, 1)
         self.film_hidden_matrix = self.get_filmhidden_matrix(films)
@@ -332,15 +330,16 @@ class BPNetwork(DataBase):
         for i in xrange(lenth):
             total = errors[0, i]**2+total
         ms_error = total
-        with file("src/bpnetwork/Logging/log.txt", "a+") as myfile:
-            myfile.write("%f,%f\n"%(ave_error, ms_error))
+        with file("src/bpnetwork/Logging/error.txt", "a+") as myfile:
+            myfile.write("%f,%f,%s\n"%(ave_error, ms_error, self.uid))
 
-    def train(self, uid, films, book_packs, STEP=0.70):
+    def train(self, uid, films, book_packs, STEP=0.40):
         '''
         训练并储存训练结果
         :param book_pack: [book_id, book_value]
         :param film_pack: [film_id, film_value]
         '''
+        self.uid = uid
         books = []
         values = []
         for book_pack in book_packs:
@@ -374,7 +373,7 @@ class BPNetwork(DataBase):
 
 if __name__ == "__main__":
     _net = BPNetwork()
-    #_net.clean_tables()
+    _net.clean_tables()
     '''_net.train("xiaoming", ["1", "2", "3", "4"], [["a", 5], ["c", 4]])
     _net.train("xiaoli", ["4", "5", "6", "7"], [["a", 5], ["b", 3]])
     output = _net.get_results(["5", "6", "4"])

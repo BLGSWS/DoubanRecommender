@@ -22,21 +22,3 @@ class ThreadTrain(Thread):
     def run(self):
         self.api.train()
 
-
-class ProcessTrain(Process):
-
-    def __init__(self, api):
-        Process.__init__(self)
-        self.api = api
-
-    def run(self):
-        self.api.train()
-
-class ProcessScrapy(Process):
-
-    def __init__(self, api):
-        Process.__init__(self)
-        self.api = api
-
-    def run(self):
-        self.api.scrapy_prefer_page()

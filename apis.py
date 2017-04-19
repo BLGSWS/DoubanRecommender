@@ -8,19 +8,17 @@ import threading
 from spider.urltool import UrlFix as ufx
 from spider.requester import Requester
 from spider.solver import BFSolver as sl
-import spider.proxy as Proxy
 from db.sqldb import MainInfo, MyError
+from bpnetwork.minitor import Minitor
 from bpnetwork.network import BPNetwork
 import MySQLdb
-'''
-实例化类
-'''
+
 class APIs(object):
 
     def __init__(self):
         self._req = Requester("src/spider/Cookie/Cookie0.txt")
         self._db = MainInfo()
-        self._net = BPNetwork()
+        self._net = BPNetwork(0.4)
 
         self.first_film_content = None
         self.first_book_content = None
@@ -41,7 +39,7 @@ class APIs(object):
         self._db.creat_prefer_book_table()
         self.select_lock.release()
         count = self._db.get_user_count()
-        i = 100
+        i = 400
         while i < count:
             self.pause.wait()
             try:
@@ -58,7 +56,7 @@ class APIs(object):
                 self.__scrapy_prefer_film_page(uid)
                 self.__scrapy_prefer_book_page(uid)
                 print "scrapy: "+uid+"  success! (%d/%d)"%(i, count)
-                self.uid_queue.put(uid)
+                #self.uid_queue.put(uid)
                 time.sleep(random.uniform(1.5, 2))
                 i += 1
             except MySQLdb.OperationalError as error:
@@ -71,31 +69,25 @@ class APIs(object):
                 print "scrapy: fasle uid:%s,count:%d"%(uid, i)
                 self._db.roll_back(uid)
                 time.sleep(10)
+        while not self.error_ample.empty():
+            print self.error_ample.get()
         self.is_finish = True
 
     def __scrapy_prefer_book_page(self, uid):
-        self.select_lock.acquire()
         nextpage = sl.perfer_book_page_detial\
         (self.first_book_content, uid, self._db.insert_prefer_book)
-        self.select_lock.release()
         while nextpage != "finish":
-            self.select_lock.acquire()
             content = self._req.get_page_with_header(nextpage)
             nextpage = sl.perfer_book_page_detial(content, uid, self._db.insert_prefer_book)
-            self.select_lock.release()
             time.sleep(random.uniform(1.5, 2))
         return nextpage
 
     def __scrapy_prefer_film_page(self, uid):
-        self.select_lock.acquire()
         nextpage = sl.perfer_film_page_detial\
         (self.first_film_content, uid, self._db.insert_prefer_film)
-        self.select_lock.release()
         while nextpage != "finish":
-            self.select_lock.acquire()
             content = self._req.get_page_with_header(nextpage)
             nextpage = sl.perfer_film_page_detial(content, uid, self._db.insert_prefer_film)
-            self.select_lock.release()
             time.sleep(random.uniform(1.5, 2))
         return nextpage
 
@@ -180,11 +172,16 @@ def scrapy_film_value_page(film_id):
             time.sleep(random.uniform(2, 4))#每分钟40以下次请求
             i += 1
 
-def train_by_order():
-    _net = BPNetwork()
+def train_by_order(uid_list=None):
+    '''
+    从一个用户列表中取得uid进行训练
+    '''
+    _net = BPNetwork(0.4)
     _db = MainInfo()
-    uid_list = _db.get_uid_list()
-    for i in xrange(50, len(uid_list)):
+    if not uid_list:
+        uid_list = _db.get_uid_list()
+        print len(uid_list)
+    for i in xrange(200, len(uid_list)):
         uid = uid_list[i]
         print uid+" begin"
         film_list = _db.select_prefer_film(uid)
@@ -195,40 +192,56 @@ def train_by_order():
         else:
             print uid+" skip"
 
-def get_results(filmids, filename):
+def get_outputs(filmids, filename):
     '''
     接受一组电影，输出高于0.615分的书籍
     :param filmids:电影id（数组）
-    :param n:输出前n高评价的书
+    :param filename:存储文件名
     :return:
     '''
     _db = MainInfo()
-    _net = BPNetwork()
+    _net = BPNetwork(0.4)
+
     results = _net.get_results(filmids)
-    books = results.items()
+    outputs = results.items()#获取神经网络输出
+    #简单选择前n项
     limit = 1.0
     i = 0
     while limit > 0.615:
         maxvalue = 0.0
         maxposition = 0
-        for j in xrange(i, len(books)):
-            if books[j][1] > maxvalue:
-                maxvalue = books[j][1]
+        for j in xrange(i, len(outputs)):
+            if outputs[j][1] > maxvalue:
+                maxvalue = outputs[j][1]
                 maxposition = j
-        books[maxposition], books[i] = books[i], books[maxposition]
+        outputs[maxposition], outputs[i] = outputs[i], outputs[maxposition]
         limit = float(maxvalue)
         i += 1
+    #纪录前n项输出
     myfile = file(filename, "a+")
     myfile.write("#"+str(filmids)+"\n")
+    head_output = []
     for j in xrange(i):
-        book_name = _db.select_book_name(books[j][0])
+        book_name = _db.select_book_name(outputs[j][0])
+        #[book_name, book_id, book_value]
+        head_output.append([book_name, outputs[j][0], outputs[j][1]])
         myfile.write(book_name.encode("utf-8"))
-        myfile.write(";%s;%s\n"%(books[j][0], books[j][1]))
+        myfile.write(";%s;%s\n"%(outputs[j][0], outputs[j][1]))
+    def get_results():
+        _mi = Minitor("avg_res.txt")
+        _mi.get_output_by_array(head_output)
+        results = _mi.get_results(30, 4)
+        return results
+    results = get_results()
+    return results
 
 def get_avg_results():
-    '''获取平均结果'''
+    '''
+    获取平均结果
+    大于0.6的平均结果按大小排序
+    '''
     _db = MainInfo()
-    _net = BPNetwork()
+    _net = BPNetwork(0.4)
     all_films = _db.select_prefer_film()
     results = _net.get_results(all_films)
     books = results.items()
@@ -249,14 +262,6 @@ def get_avg_results():
             book_name = _db.select_book_name(books[k][0])
             myfile.write(book_name.encode("utf-8"))
             myfile.write(";%s;%s\n"%(books[k][0], books[k][1]))
-
-def get_simple_results(filmids):
-    _net = BPNetwork()
-    _net.get_simple_results(filmids)
-
-def keep_proxy():
-    '''开启代理池'''
-    Proxy.init_proxylist(False)
 
 if __name__ == '__main__':
     get_avg_results()

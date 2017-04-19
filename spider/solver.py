@@ -1,7 +1,6 @@
 #coding:utf-8
 
 import re
-import json
 from bs4 import BeautifulSoup
 
 def set_value(str_value):
@@ -18,7 +17,9 @@ def set_value(str_value):
     return u'0'
 
 class BFSolver(object):
-    "工具类:基于BeautifulSoup的解析器"
+    '''
+    工具类:基于BeautifulSoup的解析器
+    '''
 
     def __init__(self):
         pass
@@ -26,7 +27,8 @@ class BFSolver(object):
     @classmethod
     def get_active(cls, content):
         '''
-        return the number of people who valued
+        :param content:html文档
+        :return:评价过电影的人数
         '''
         soup = BeautifulSoup(content, "html.parser")
         total = soup.find("li", class_="is-active").find("span").string
@@ -35,7 +37,12 @@ class BFSolver(object):
 
     @classmethod
     def skip_or_not(cls, content, max_num, min_num):
-        '''判断是否跳过此用户'''
+        '''
+        判断是否跳过此用户
+        :param content:html文档
+        :param max_num:可接受的最大电影数/书籍数
+        :param min_num:可接受的最小电影数/书籍数
+        '''
         soup = BeautifulSoup(content, "html.parser")
         num_str = soup.find("div", id="wrapper").find("div", class_="info").find("h1").string
         num = re.search(ur"\([0-9]+\)", num_str).group().replace(u"(", u"").replace(u")", u"")
@@ -71,9 +78,9 @@ class BFSolver(object):
     @classmethod
     def perfer_book_page_detial(cls, content, uid, save):
         '''
-        book_name:书名
-        book_id:书编号
-        book_value:对书的评价
+        :param content:html文档
+        :param uid:用户uid
+        :param save:回调函数
         '''
         soup = BeautifulSoup(content, "html.parser")
         li_list = soup.find("ul", class_="list-view")
@@ -91,6 +98,7 @@ class BFSolver(object):
                 #找不到星星
                 return "finish"
             book_name = book_name_u.rstrip(u" ").strip(u"\n").lstrip(u" ").replace(u"'", u"")
+            #book_name:书名;book_id:书编号;book_value:对书的评价
             data = {"book_name":book_name, "book_id":book_id, "book_value":value, "user_uid":uid}
             save(data)
         try:
@@ -103,9 +111,9 @@ class BFSolver(object):
     @classmethod
     def perfer_film_page_detial(cls, content, uid, save):
         '''
-        film_name:影片名
-        film_id:影片编号
-        film_value:对影片的评价
+         :param content:html文档
+        :param uid:用户uid
+        :param save:回调函数
         '''
         soup = BeautifulSoup(content, "html.parser")
         li_list = soup.find("ul", class_="list-view")
@@ -127,6 +135,7 @@ class BFSolver(object):
                 #暂时不抓取评价小于五星的电影
                 return "finish"
             film_name = film_name_u.rstrip(u" ").strip(u"\n").lstrip(u" ").replace(u"'", u"")
+            #film_name:影片名，film_id:影片编号，film_value:对影片的评价
             data = {"film_name":film_name, "film_id":film_id, "film_value":value, "user_uid":uid}
             save(data)
         try:
@@ -135,28 +144,6 @@ class BFSolver(object):
             #找不到下一页按钮
             return "finish"
         return str(next_page)
-
-class JsonSolver(object):
-
-    def __init__(self):
-        pass
-
-    def get_user_info(self, jsdata):
-        content = json.loads(jsdata.text, encoding='utf-8')
-        user_id = content.get("id", "None")
-        uid = content.get("uid", "None")
-        name = content.get("name", "None")
-        avatar = content.get("avatar", "None")
-        loc_name = content.get("loc_name", "None")
-        loc_id = content.get("loc_id", "None")
-        usr_dict = {"id":user_id,
-                    "uid":uid,
-                    "name":name,
-                    "avatar":avatar,
-                    "loc_name":loc_name,
-                    "loc_id":loc_id}
-        #字典直接输出中文一定是乱码
-        return usr_dict
 
 if __name__ == '__main__':
     pass
