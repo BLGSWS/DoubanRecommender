@@ -282,18 +282,6 @@ class BPNetwork(DataBase):
             output_dict[books[i]] = self.book_output[0, i]
         return output_dict
 
-    def get_simple_results(self, films):
-        hiddens = self.get_hiddennodes(films, [])
-        print hiddens
-        film_hidden_matrix = [[self.get_matrix_strength(film, hidden, 0)
-                               for hidden in hiddens]
-                              for film in films]
-        self.hidden_threshold = self.get_threshold_strength(hiddens, 0)
-        self.film_output = np.array([1.0]*len(films))
-        hidden_input = np.dot(self.film_output, self.film_hidden_matrix)
-        self.hidden_output = sigmoid(hidden_input-self.hidden_threshold)
-        print self.hidden_output
-
     def back_propagate(self, origins, targets, STEP):
         '''
         前馈算法
@@ -330,7 +318,7 @@ class BPNetwork(DataBase):
         for i in xrange(lenth):
             total = errors[0, i]**2+total
         ms_error = total
-        with file("src/bpnetwork/Logging/error.txt", "a+") as myfile:
+        with file("bpnetwork/Logging/error.txt", "a+") as myfile:
             myfile.write("%f,%f,%s\n"%(ave_error, ms_error, self.uid))
 
     def train(self, uid, films, book_packs, STEP=0.40):

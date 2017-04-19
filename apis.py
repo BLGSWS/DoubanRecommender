@@ -16,9 +16,9 @@ import MySQLdb
 class APIs(object):
 
     def __init__(self):
-        self._req = Requester("src/spider/Cookie/Cookie0.txt")
+        self._req = Requester("spider/Cookie/Cookie0.txt")
         self._db = MainInfo()
-        self._net = BPNetwork(0.4)
+        self._net = BPNetwork()
 
         self.first_film_content = None
         self.first_book_content = None
@@ -31,21 +31,16 @@ class APIs(object):
         self.is_finish = False
         self.pause = threading.Event()
         self.pause.set()
-        self.select_lock = threading.Lock()
 
     def scrapy_prefer_page(self):
-        self.select_lock.acquire()
         self._db.creat_prefer_film_table()
         self._db.creat_prefer_book_table()
-        self.select_lock.release()
         count = self._db.get_user_count()
         i = 400
         while i < count:
             self.pause.wait()
             try:
-                self.select_lock.acquire()
                 uid = self._db.select_uid_from_film_value(i)
-                self.select_lock.release()
                 print "scarpy: "+uid+" begin"
                 flag = self.skip_or_not(uid)
                 if flag == 0:
@@ -118,10 +113,8 @@ class APIs(object):
                 uid = self.uid_queue.get()
             print "tarin: %s begin "%uid
             try:
-                self.select_lock.acquire()
                 film_list = self._db.select_prefer_film(uid)
                 book_list = self._db.select_prefer_book(uid)
-                self.select_lock.release()
                 self._net.train(uid, film_list, book_list)
             except MySQLdb.OperationalError as error:
                 if error[0] == 2006:
@@ -144,7 +137,7 @@ def scrapy_film_value_page(film_id):
     _db = MainInfo()
     _db.creat_film_value_table()
 
-    _req = Requester("src/spider/Cookie/Cookie1.txt")
+    _req = Requester("spider/Cookie/Cookie1.txt")
 
     #抓取第一页
     forehead = ufx.creat_filmpage_forehead(film_id)
@@ -159,7 +152,7 @@ def scrapy_film_value_page(film_id):
     i = 1
     while i < count:
         try:
-            content = _req.get_film_value_page(page)
+            content = _req.get_page_with_header(page)
             next_page = sl.film_value_page_detial(content, _db.insert_uid)
             print page+" success! (%d/%d)"%(i, count)
         except Exception:
@@ -176,7 +169,7 @@ def train_by_order(uid_list=None):
     '''
     从一个用户列表中取得uid进行训练
     '''
-    _net = BPNetwork(0.4)
+    _net = BPNetwork()
     _db = MainInfo()
     if not uid_list:
         uid_list = _db.get_uid_list()
@@ -192,7 +185,7 @@ def train_by_order(uid_list=None):
         else:
             print uid+" skip"
 
-def get_outputs(filmids, filename):
+def get_outputs(filmids, filename=None):
     '''
     接受一组电影，输出高于0.615分的书籍
     :param filmids:电影id（数组）
@@ -200,7 +193,7 @@ def get_outputs(filmids, filename):
     :return:
     '''
     _db = MainInfo()
-    _net = BPNetwork(0.4)
+    _net = BPNetwork()
 
     results = _net.get_results(filmids)
     outputs = results.items()#获取神经网络输出
@@ -218,15 +211,17 @@ def get_outputs(filmids, filename):
         limit = float(maxvalue)
         i += 1
     #纪录前n项输出
-    myfile = file(filename, "a+")
-    myfile.write("#"+str(filmids)+"\n")
+    if filename != None:
+        myfile = file("bpnetwork/Logging/"+filename, "a+")
+        myfile.write("#"+str(filmids)+"\n")
     head_output = []
     for j in xrange(i):
         book_name = _db.select_book_name(outputs[j][0])
         #[book_name, book_id, book_value]
         head_output.append([book_name, outputs[j][0], outputs[j][1]])
-        myfile.write(book_name.encode("utf-8"))
-        myfile.write(";%s;%s\n"%(outputs[j][0], outputs[j][1]))
+        if filename != None:
+            myfile.write(book_name.encode("utf-8"))
+            myfile.write(";%s;%s\n"%(outputs[j][0], outputs[j][1]))
     def get_results():
         _mi = Minitor("avg_res.txt")
         _mi.get_output_by_array(head_output)
@@ -241,7 +236,7 @@ def get_avg_results():
     大于0.6的平均结果按大小排序
     '''
     _db = MainInfo()
-    _net = BPNetwork(0.4)
+    _net = BPNetwork()
     all_films = _db.select_prefer_film()
     results = _net.get_results(all_films)
     books = results.items()
@@ -257,7 +252,7 @@ def get_avg_results():
         books[maxposition], books[i] = books[i], books[maxposition]
         limit = float(maxvalue)
         i += 1
-    with file("src/bpnetwork/Logging/avg_res.txt", "a+") as myfile:
+    with file("bpnetwork/Logging/avg_res.txt", "a+") as myfile:
         for k in xrange(i):
             book_name = _db.select_book_name(books[k][0])
             myfile.write(book_name.encode("utf-8"))

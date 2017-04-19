@@ -10,7 +10,7 @@ def sigmoid(x):
 
 def get_avg_error():
     errors = []
-    with file("src/bpnetwork/Logging/error.txt") as myfile:
+    with file("bpnetwork/Logging/error.txt") as myfile:
         while True:
             line = myfile.readline()
             if not line:
@@ -45,7 +45,7 @@ class Minitor(object):
         self.avg_x = None
         self.avg_y = None
         self.fun = None#平均结果拟合后的函数
-        self.__avg_value_regress("src/bpnetwork/Logging/"+avgfilename)
+        self.__avg_value_regress("bpnetwork/Logging/"+avgfilename)
 
     def get_output_by_file(self, filename):
         '''
@@ -55,7 +55,7 @@ class Minitor(object):
         rank = []
         values = []
         i = 0
-        myfile = open("src/bpnetwork/Logging/"+filename, "r")
+        myfile = open("bpnetwork/Logging/"+filename, "r")
         while True:
             line = myfile.readline()
             if not line:
@@ -148,7 +148,9 @@ class Minitor(object):
                     maxvalue = results[j][2]
             results[maxposition], results[i] = results[i], results[maxposition]
         for i in xrange(n):
-            print results[i][0].decode("utf-8"), results[i][1], results[i][2]
+            if isinstance(results[i][0], str):
+                results[i][0] = results[i][0].decode("utf-8")
+            print results[i][0], results[i][1], results[i][2]
         self.errors = errors+np.ones(errors.shape[0])*0.60
         return results
 
@@ -166,8 +168,10 @@ if __name__ == "__main__":
     mi.get_output_by_file("res_4.txt")
     mi.get_results(30, 4)
     mi.plot_show()'''
-    error = get_avg_error()
-    show_error(error)
+    a = "love"
+    print type(a)
+    #error = get_avg_error()
+    #show_error(error)
 
 
 

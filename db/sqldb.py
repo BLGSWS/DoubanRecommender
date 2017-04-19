@@ -18,7 +18,7 @@ class DataBase(object):
     def __init__(self):
         '''utf-8编码'''
         self.parser = ConfigParser.ConfigParser()
-        self.parser.read("src/db/config.cfg")
+        self.parser.read("db/config.cfg")
         self.dbname = self.parser.get("DB_Config", "database_name")
         self.conn = self.create_conn()
         self.cursor = self.conn.cursor()

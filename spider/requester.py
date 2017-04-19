@@ -9,7 +9,7 @@ import cookielib
 
 class Requester(object):
 
-    def __init__(self, cookiePath="src/spider/Cookie/Cookie0.txt"):
+    def __init__(self, cookiePath="spider/Cookie/Cookie0.txt"):
         self.cookie = cookielib.MozillaCookieJar(cookiePath)
         self.cookie.load(cookiePath, ignore_discard=True, ignore_expires=True)
 
@@ -36,7 +36,7 @@ class Requester(object):
         print "page code type:"+str(type(content))
         i = 0
         while i < num:
-            with file('src/spider/page/detial_page%d.html'%i, 'w') as myfile:
+            with file('spider/page/detial_page%d.html'%i, 'w') as myfile:
                 myfile.write(content)
             i = i+1
 

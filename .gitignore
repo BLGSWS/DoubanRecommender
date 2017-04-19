@@ -96,3 +96,6 @@ ENV/
 
 # mkdocs documentation
 /site
+
+# custom
+spider/Cookie/*.cookie
