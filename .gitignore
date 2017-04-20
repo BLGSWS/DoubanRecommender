@@ -98,4 +98,4 @@ ENV/
 /site
 
 # custom
-spider/Cookie/*.cookie
+spider/Cookie/*.txt

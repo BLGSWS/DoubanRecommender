@@ -34,7 +34,7 @@ def show_error(errors):
 
 class Minitor(object):
 
-    def __init__(self, avgfilename):
+    def __init__(self, avgfilename="avg_res.txt"):
         self.book_info = []#当前结果信息
         self.avg_results = []#平均结果
         self.project_values = []#平均结果在当前结果空间内的值
@@ -135,8 +135,8 @@ class Minitor(object):
         errors = self.output_y-self.project_values
         results = []
         for i in xrange(errors.shape[0]):
-            revise = sigmoid((1.0-self.output_y[i])*2.5)
-            errors[i] = errors[i]*(revise*2)**count
+            revise = sigmoid((0.8-self.output_y[i])*5)
+            errors[i] = errors[i]*(revise**count)
             results.append([self.book_info[i][0], self.book_info[i][1], errors[i]])
         #简单选择选择前n项
         for i in xrange(n):
@@ -158,18 +158,16 @@ class Minitor(object):
         lenth = len(self.project_values)
         plt.plot(np.linspace(0, lenth, lenth), np.array(self.project_values), "ob")
         plt.plot(self.output_x, self.output_y, "og")
-        plt.plot(self.output_x, self.errors, "or")
+        #plt.plot(self.output_x, self.errors, "or")
         #plt.plot(self.avg_x, self.avg_y, "or")
         #plt.plot(self.avg_x, self.fun(self.avg_x), lw=2)
         plt.show()
 
 if __name__ == "__main__":
-    '''mi = Minitor("avg_res.txt")
-    mi.get_output_by_file("res_4.txt")
-    mi.get_results(30, 4)
-    mi.plot_show()'''
-    a = "love"
-    print type(a)
+    mi = Minitor("avg_res.txt")
+    mi.get_output_by_file("res_5.txt")
+    mi.get_results(30, 2)
+    mi.plot_show()
     #error = get_avg_error()
     #show_error(error)
 

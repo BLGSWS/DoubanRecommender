@@ -8,16 +8,17 @@ import threading
 from spider.urltool import UrlFix as ufx
 from spider.requester import Requester
 from spider.solver import BFSolver as sl
-from db.sqldb import MainInfo, MyError
+from db.sqldb import DataBase
+from db.maininfo import MainInfo
 from bpnetwork.minitor import Minitor
 from bpnetwork.network import BPNetwork
-import MySQLdb
 
 class APIs(object):
 
     def __init__(self):
         self._req = Requester("spider/Cookie/Cookie0.txt")
-        self._db = MainInfo()
+        database = DataBase()
+        self._db = MainInfo(database)
         self._net = BPNetwork()
 
         self.first_film_content = None
@@ -36,13 +37,13 @@ class APIs(object):
         self._db.creat_prefer_film_table()
         self._db.creat_prefer_book_table()
         count = self._db.get_user_count()
-        i = 400
+        i = 1
         while i < count:
             self.pause.wait()
             try:
                 uid = self._db.select_uid_from_film_value(i)
-                print "scarpy: "+uid+" begin"
-                flag = self.skip_or_not(uid)
+                print "scarpy: %s begin"%uid
+                flag = self.__skip_or_not(uid)
                 if flag == 0:
                     print "scarpy: uid:%s,count%d skip!"%(uid, i)
                     i += 1
@@ -54,13 +55,8 @@ class APIs(object):
                 #self.uid_queue.put(uid)
                 time.sleep(random.uniform(1.5, 2))
                 i += 1
-            except MySQLdb.OperationalError as error:
-                if error[0] == 2013:
-                    self._db.reconnect_database()
-                    self._db.roll_back(uid)
-                print self.pause
-                continue
             except:
+                raise
                 print "scrapy: fasle uid:%s,count:%d"%(uid, i)
                 self._db.roll_back(uid)
                 time.sleep(10)
@@ -86,7 +82,7 @@ class APIs(object):
             time.sleep(random.uniform(1.5, 2))
         return nextpage
 
-    def skip_or_not(self, uid):
+    def __skip_or_not(self, uid):
         '''
         判断是否跳过用户
         :param uid:用户uid
@@ -116,15 +112,9 @@ class APIs(object):
                 film_list = self._db.select_prefer_film(uid)
                 book_list = self._db.select_prefer_book(uid)
                 self._net.train(uid, film_list, book_list)
-            except MySQLdb.OperationalError as error:
-                if error[0] == 2006:
-                    self._db.reconnect_database()
-                    self.error_ample.put(uid)
-                else:
-                    raise
             except:
                 self.pause.clear()
-                print "locked"
+                print "train: %s locked"%uid
             else:
                 print "train: %s end"%uid
 
@@ -134,7 +124,8 @@ def scrapy_film_value_page(film_id):
     :param film_id:电影id
     '''
     #建表
-    _db = MainInfo()
+    database = DataBase()
+    _db = MainInfo(database)
     _db.creat_film_value_table()
 
     _req = Requester("spider/Cookie/Cookie1.txt")
@@ -170,7 +161,8 @@ def train_by_order(uid_list=None):
     从一个用户列表中取得uid进行训练
     '''
     _net = BPNetwork()
-    _db = MainInfo()
+    database = DataBase()
+    _db = MainInfo(database)
     if not uid_list:
         uid_list = _db.get_uid_list()
         print len(uid_list)
@@ -192,7 +184,8 @@ def get_outputs(filmids, filename=None):
     :param filename:存储文件名
     :return:
     '''
-    _db = MainInfo()
+    database = DataBase()
+    _db = MainInfo(database)
     _net = BPNetwork()
 
     results = _net.get_results(filmids)
@@ -225,7 +218,7 @@ def get_outputs(filmids, filename=None):
     def get_results():
         _mi = Minitor("avg_res.txt")
         _mi.get_output_by_array(head_output)
-        results = _mi.get_results(30, 4)
+        results = _mi.get_results(30, 2)
         return results
     results = get_results()
     return results
@@ -235,7 +228,8 @@ def get_avg_results():
     获取平均结果
     大于0.6的平均结果按大小排序
     '''
-    _db = MainInfo()
+    database = DataBase()
+    _db = MainInfo(database)
     _net = BPNetwork()
     all_films = _db.select_prefer_film()
     results = _net.get_results(all_films)

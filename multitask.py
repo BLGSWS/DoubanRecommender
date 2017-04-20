@@ -1,7 +1,6 @@
 #coding:utf-8
 
 from threading import Thread
-from multiprocessing import Process
 from apis import APIs
 
 class ThreadScrapy(Thread):

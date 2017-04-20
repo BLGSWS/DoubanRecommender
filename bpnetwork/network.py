@@ -11,7 +11,7 @@ from db.sqldb import DataBase
 filterwarnings('error', category = MySQLdb.Warning)
 
 def sigmoid(x):
-    if type(x) != np.ndarray:
+    if isinstance(x, np.ndarray):
         x = x.getA()
     y = 1.0/(1.0+math.e**(-x))
     return y
@@ -34,7 +34,6 @@ def layer_to_threshold(layer):
     if layer == 1:
         table = "bookthreshold"
     return table
-
 
 class BPNetwork(DataBase):
 
@@ -83,7 +82,7 @@ class BPNetwork(DataBase):
         self.cursor.execute('''
         create table if not exists bookthreshold(nodeid varchar(225) not null,strength float not null)
         ''')
-        print "Database: create networks_tables success"
+        print "Database: create network's tables success"
 
     def clean_tables(self):
         '''测试用'''
@@ -307,7 +306,7 @@ class BPNetwork(DataBase):
 
     def save_cost(self, errors):
         '''
-        计算误差
+        :summary:计算均方误差并储存
         '''
         lenth = np.shape(errors)[1]
         total = 0.0
@@ -323,7 +322,7 @@ class BPNetwork(DataBase):
 
     def train(self, uid, films, book_packs, STEP=0.40):
         '''
-        训练并储存训练结果
+        :summary:训练并储存训练结果
         :param book_pack: [book_id, book_value]
         :param film_pack: [film_id, film_value]
         '''
