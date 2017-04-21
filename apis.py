@@ -19,7 +19,7 @@ class APIs(object):
         self._req = Requester("spider/Cookie/Cookie0.txt")
         database = DataBase()
         self._db = MainInfo(database)
-        self._net = BPNetwork()
+        self._net = BPNetwork(database)
 
         self.first_film_content = None
         self.first_book_content = None
@@ -160,8 +160,8 @@ def train_by_order(uid_list=None):
     '''
     从一个用户列表中取得uid进行训练
     '''
-    _net = BPNetwork()
     database = DataBase()
+    _net = BPNetwork(database)
     _db = MainInfo(database)
     if not uid_list:
         uid_list = _db.get_uid_list()
@@ -186,7 +186,7 @@ def get_outputs(filmids, filename=None):
     '''
     database = DataBase()
     _db = MainInfo(database)
-    _net = BPNetwork()
+    _net = BPNetwork(database)
 
     results = _net.get_results(filmids)
     outputs = results.items()#获取神经网络输出
@@ -230,7 +230,8 @@ def get_avg_results():
     '''
     database = DataBase()
     _db = MainInfo(database)
-    _net = BPNetwork()
+    _net = BPNetwork(database)
+
     all_films = _db.select_prefer_film()
     results = _net.get_results(all_films)
     books = results.items()

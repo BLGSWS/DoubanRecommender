@@ -4,21 +4,19 @@ import math
 import MySQLdb
 import numpy as np
 
-import sys
-
 from db.sqldb import DataBase
 
 filterwarnings('error', category = MySQLdb.Warning)
 
 def sigmoid(x):
-    if isinstance(x, np.ndarray):
+    if not isinstance(x, np.ndarray):
         x = x.getA()
     y = 1.0/(1.0+math.e**(-x))
     return y
 
 def inner_dot(x, y):
     m = np.dot(x.T, y)
-    inner = np.mat(np.diag(m))
+    inner = np.array([np.diag(m)])
     return inner
 
 def layer_to_table(layer):
@@ -35,14 +33,11 @@ def layer_to_threshold(layer):
         table = "bookthreshold"
     return table
 
-class BPNetwork(DataBase):
+class BPNetwork(object):
 
-    def __init__(self):
-        DataBase.__init__(self)
-        try:
-            self.__creat_tables()
-        except MySQLdb.Warning as e:
-            print "Database: tables of bpnetwork already existed"
+    def __init__(self, database):
+        self._db = database
+        self.__create_tables()
 
         self.uid = None
         self.step = None#下降步长
@@ -63,63 +58,59 @@ class BPNetwork(DataBase):
         self.hidden_book_zeros = {}
         self.film_hidden_zeros = {}
 
-    def connect_info(self):
-        print "Database: BPNetwork already connected to %s"%self.dbname
-
-    def __creat_tables(self):
-        self.cursor.execute('''
+    def __create_tables(self):
+        hiddennode_sql = '''
         create table if not exists hiddennode(pk_pid mediumint not null auto_increment,uid varchar(225) not null,primary key (pk_pid))
-        ''')
-        self.cursor.execute('''
+        '''
+        filmtohidden_sql = '''
         create table if not exists filmtohidden(fromid varchar(225) not null,toid varchar(225) not null,strength float not null,index(toid))
-        ''')
-        self.cursor.execute('''
+        '''
+        hiddentobook_sql = '''
         create table if not exists hiddentobook(fromid varchar(225) not null,toid varchar(225) not null,strength float not null,index(fromid))
-        ''')
-        self.cursor.execute('''
+        '''
+        hiddenthreshold_sql = '''
         create table if not exists hiddenthreshold(nodeid varchar(225) not null,strength float not null)
-        ''')
-        self.cursor.execute('''
+        '''
+        bookthreshold_sql = '''
         create table if not exists bookthreshold(nodeid varchar(225) not null,strength float not null)
-        ''')
-        print "Database: create network's tables success"
+        '''
+        self._db.create_table(hiddennode_sql, "hiddennode")
+        self._db.create_table(filmtohidden_sql, "filmtohidden")
+        self._db.create_table(hiddentobook_sql, "hiddentobook")
+        self._db.create_table(hiddenthreshold_sql, "hiddenthreshold")
+        self._db.create_table(bookthreshold_sql, "bookthreshold")
 
     def clean_tables(self):
-        '''测试用'''
-        try:
-            self.cursor.execute("drop table if exists hiddennode")
-            self.cursor.execute("drop table if exists filmtohidden")
-            self.cursor.execute("drop table if exists hiddentobook")
-            self.cursor.execute("drop table if exists hiddenthreshold")
-            self.cursor.execute("drop table if exists bookthreshold")
-        except MySQLdb.Warning:
-            pass
+        '''
+        :summary:清除与神经网络相关的所有表，测试用
+        '''
+        tablenames = ["hiddennode",
+                      "filmtohidden",
+                      "hiddentobook",
+                      "hiddenthreshold",
+                      "bookthreshold"]
+        self._db.clean_tables(tablenames)
         print "DataBase: clean tables success"
 
-    def select_from_table(self, layer):
-        '''测试用'''
-        tablename = layer_to_table(layer)
-        self.cursor.execute("select * from %s"%tablename)
-        results = self.cursor.fetchall()
-        for result in results:
-            print result
-
     def get_matrix_strength(self, fromid, toid, layer):
-        '''获得矩阵权重'''
+        '''
+        :summary:获得矩阵权重
+        '''
         table = layer_to_table(layer)
-        self.cursor.execute("select strength from %s where fromid='%s' and toid='%s'"\
-        %(table, fromid, toid))
-        res = self.cursor.fetchone()
-        if not res:
+        sql = "select strength from %s where fromid='%s' and toid='%s'"%(table, fromid, toid)
+        result = self._db.select_one(sql)
+        if not result:
             if layer == 0:
+                #记录强度为默认值的连接
                 self.film_hidden_zeros[fromid+toid] = 1
                 return -0.2
             if layer == 1:
+                #记录强度为默认值的连接
                 self.hidden_book_zeros[toid+fromid] = 1
                 return 0.0
             #重要参数-->未加入矩阵链接权值
         else:
-            return res[0]
+            return result[0]
 
     def get_threshold_strength(self, nodeids, layer):
         '''获得某层阈值权重
@@ -128,13 +119,13 @@ class BPNetwork(DataBase):
         table = layer_to_threshold(layer)
         thetas = []
         for nodeid in nodeids:
-            self.cursor.execute("select strength from %s where nodeid='%s'"%(table, nodeid))
-            res = self.cursor.fetchone()
-            if not res:
+            sql = "select strength from %s where nodeid='%s'"%(table, nodeid)
+            result = self._db.select_one(sql)
+            if not result:
                 #默认
                 thetas.append(0.0)
             else:
-                thetas.append(res[0])
+                thetas.append(result[0])
         return np.array([thetas])
 
     def set_threshold_strength(self, nodeid, strength, layer):
@@ -142,34 +133,33 @@ class BPNetwork(DataBase):
            layer = 0：隐藏层阈值
            layer = 1：输出层阈值'''
         table = layer_to_threshold(layer)
-        self.cursor.execute("select strength from %s where nodeid='%s'"%(table, nodeid))
-        res = self.cursor.fetchone()
-        if not res:
-            self.cursor.execute("insert into %s (strength,nodeid) values(%f,'%s')"\
-            %(table, strength, nodeid))
+        sql = "select strength from %s where nodeid='%s'"%(table, nodeid)
+        result = self._db.select_one(sql)
+        if not result:
+            sql = "insert into %s (strength,nodeid) values(%f,'%s')"%(table, strength, nodeid)
         else:
-            self.cursor.execute("update %s set strength=%f where nodeid='%s'"\
-            %(table, strength, nodeid))
+            sql = "update %s set strength=%f where nodeid='%s'"%(table, strength, nodeid)
+        self._db.change_one(sql)
 
     def set_matrix_strength(self, fromid, toid, layer, strength):
         '''更新矩阵权重
            layer = 0：filmtohidden
            layer = 1：hiddentobook'''
         table = layer_to_table(layer)
-        self.cursor.execute("select strength from %s where fromid='%s' and toid='%s'"\
-        %(table, fromid, toid))
-        res = self.cursor.fetchone()
-        if not res:
-            self.cursor.execute("insert into %s (strength,fromid,toid) values (%f,'%s','%s')"\
-            %(table, strength, fromid, toid))
+        sql = "select strength from %s where fromid='%s' and toid='%s'"%(table, fromid, toid)
+        result = self._db.select_one(sql)
+        if not result:
+            sql = "insert into %s (strength,fromid,toid) values (%f,'%s','%s')"\
+            %(table, strength, fromid, toid)
         else:
-            self.cursor.execute("update %s set strength=%f where fromid='%s' and toid='%s'"\
-            %(table, strength, fromid, toid))
+            sql = "update %s set strength=%f where fromid='%s' and toid='%s'"\
+            %(table, strength, fromid, toid)
+        self._db.change_one(sql)
 
     def generate_hiddennode(self, uid, films, books):
         '''生成隐藏节点'''
-        self.cursor.execute("insert into hiddennode (uid) values ('%s')"%uid)
-        self.conn.commit()
+        sql = "insert into hiddennode (uid) values ('%s')"%uid
+        self._db.change_one(sql)
         for film in films:
             self.set_matrix_strength(film, uid, 0, 0.01)
         for book in books:
@@ -184,13 +174,13 @@ class BPNetwork(DataBase):
         hiddennodelist = {}
         #获取与
         for film in films:
-            self.cursor.execute("select toid from filmtohidden where fromid='%s'"%film)
-            results = self.cursor.fetchall()
+            sql = "select toid from filmtohidden where fromid='%s'"%film
+            results = self._db.select_all(sql)
             for result in results:
                 hiddennodelist[result[0]] = 1
         for book in books:
-            self.cursor.execute("select fromid from hiddentobook where toid='%s'"%book)
-            results = self.cursor.fetchall()
+            sql = "select fromid from hiddentobook where toid='%s'"%book
+            results = self._db.select_all(sql)
             for result in results:
                 hiddennodelist[result[0]] = 1
         return hiddennodelist.keys()
@@ -199,8 +189,8 @@ class BPNetwork(DataBase):
         '''获取与隐藏层节点相关的书籍节点'''
         booknodelist = {}
         for hidden_node in hidden_nodes:
-            self.cursor.execute("select toid from hiddentobook where fromid='%s'"%hidden_node)
-            results = self.cursor.fetchall()
+            sql = "select toid from hiddentobook where fromid='%s'"%hidden_node
+            results = self._db.select_all(sql)
             for result in results:
                 booknodelist[result[0]] = 1
         return booknodelist.keys()
@@ -215,8 +205,8 @@ class BPNetwork(DataBase):
         hidden_book_matrix = [[self.get_matrix_strength(hidden, book, 1)
                                for book in books]
                               for hidden in self.hidden_node]
-        self.film_hidden_matrix = np.matrix(film_hidden_matrix)
-        self.hidden_book_matrix = np.matrix(hidden_book_matrix)
+        self.film_hidden_matrix = np.array(film_hidden_matrix)
+        self.hidden_book_matrix = np.array(hidden_book_matrix)
 
         #获得阈值theat
         self.hidden_threshold = self.get_threshold_strength(self.hidden_node, 0)
@@ -238,8 +228,8 @@ class BPNetwork(DataBase):
         matrix = matrix*(-0.2)
         i = 0
         for film in films:
-            self.cursor.execute("select toid,strength from filmtohidden where fromid='%s'"%film)
-            results = self.cursor.fetchall()
+            sql = "select toid,strength from filmtohidden where fromid='%s'"%film
+            results = self._db.select_all(sql)
             for result in results:
                 j = hiddens.index(result[0])
                 if j != None:
@@ -253,8 +243,8 @@ class BPNetwork(DataBase):
         matrix = np.zeros([len(hiddens), len(books)])
         i = 0
         for hidden in hiddens:
-            self.cursor.execute("select toid,strength from hiddentobook where fromid='%s'"%hidden)
-            results = self.cursor.fetchall()
+            sql = "select toid,strength from hiddentobook where fromid='%s'"%hidden
+            results = self._db.select_all(sql)
             for result in results:
                 j = books.index(result[0])
                 if j != None:
@@ -343,30 +333,27 @@ class BPNetwork(DataBase):
                     continue
                 self.set_matrix_strength\
                 (self.hidden_node[i], books[j], 1, self.hidden_book_matrix[i, j])
-            self.conn.commit()
         for i in xrange(len(films)):
             for j in xrange(len(self.hidden_node)):
                 if films[i]+self.hidden_node[j] in self.film_hidden_zeros:
                     continue
                 self.set_matrix_strength\
                 (films[i], self.hidden_node[j], 0, self.film_hidden_matrix[i, j])
-            self.conn.commit()
         for i in xrange(len(books)):
             self.set_threshold_strength(books[i], self.book_threshold[0, i], 1)
-        self.conn.commit()
         for i in xrange(len(self.hidden_node)):
             self.set_threshold_strength(self.hidden_node[i], self.hidden_threshold[0, i], 0)
-        self.conn.commit()
 
 if __name__ == "__main__":
-    _net = BPNetwork()
-    _net.clean_tables()
-    '''_net.train("xiaoming", ["1", "2", "3", "4"], [["a", 5], ["c", 4]])
+    _db = DataBase()
+    _net = BPNetwork(_db)
+    #_net.clean_tables()
+    _net.train("xiaoming", ["1", "2", "3", "4"], [["a", 5], ["c", 4]])
     _net.train("xiaoli", ["4", "5", "6", "7"], [["a", 5], ["b", 3]])
     output = _net.get_results(["5", "6", "4"])
     print output
-    _net.clean_tables()'''
-    #net.train("xiaohua", ["1", "2"], [["a", 5],["c",3]])'''
+    #_net.clean_tables()
+    '''#net.train("xiaohua", ["1", "2"], [["a", 5],["c",3]])'''
 
     '''output = net.get_results(["1292220"])
     MAX = 0.0

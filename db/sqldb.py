@@ -55,6 +55,7 @@ class DataBase(object):
         self.cursor.execute(sql)
         print "Database: connect success!"
 
+    @locked(lock)
     def reconnect_database(self):
         '''
         :summary:重连接数据库
@@ -72,7 +73,7 @@ class DataBase(object):
         except MySQLdb.Warning, e:
             print e
 
-    def get_last_insert_item(self):
+    def __get_last_insert_item(self):
         self.cursor.execute("SELECT @@IDENTITY AS pid")
         result = self.cursor.fetchall()
         return result[0]['pid']
@@ -93,9 +94,9 @@ class DataBase(object):
         :param para:tuple或者list
         :return:插入到了第几行
         '''
-        self.cursor.executeall(sql, para)
+        self.cursor.executemany(sql, para)
         self.conn.commit()
-        pid = self.get_last_insert_item()
+        pid = self.__get_last_insert_item()
         return pid
 
     @locked(lock)
@@ -126,7 +127,7 @@ class DataBase(object):
         '''
         try:
             self.cursor.execute(sql)
-            print "DataBase: create table %s succeeded!"%tablename
+            print "Database: create table %s succeeded!"%tablename
         except MySQLdb.Warning, e:
             print e
 
@@ -137,6 +138,17 @@ class DataBase(object):
             print mesg
         except:
             print sql
+            raise
+
+    def clean_tables(self, tablenames):
+        '''
+        :param tablenames:要清除的表名
+        '''
+        try:
+            for tablename in tablenames:
+                self.cursor.execute("drop table if existed %s"%tablename)
+                print "Database: drop table %s succeeded!"
+        except:
             raise
 
 if __name__ == '__main__':
