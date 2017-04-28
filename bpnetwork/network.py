@@ -4,8 +4,6 @@ import math
 import MySQLdb
 import numpy as np
 
-from db.sqldb import DataBase
-
 filterwarnings('error', category = MySQLdb.Warning)
 
 def sigmoid(x):
@@ -37,7 +35,7 @@ class BPNetwork(object):
 
     def __init__(self, database):
         self._db = database
-        self.__create_tables()
+        #self.__create_tables()
 
         self.uid = None
         self.step = None#下降步长
@@ -58,27 +56,29 @@ class BPNetwork(object):
         self.hidden_book_zeros = {}
         self.film_hidden_zeros = {}
 
-    def __create_tables(self):
+    def create_tables(self):
         hiddennode_sql = '''
-        create table if not exists hiddennode(pk_pid mediumint not null auto_increment,uid varchar(225) not null,primary key (pk_pid))
+        create table hiddennode(uid varchar(225) not null)
         '''
         filmtohidden_sql = '''
-        create table if not exists filmtohidden(fromid varchar(225) not null,toid varchar(225) not null,strength float not null,index(toid))
+        create table filmtohidden(fromid varchar(225) not null,toid varchar(225) not null,strength float not null)
         '''
         hiddentobook_sql = '''
-        create table if not exists hiddentobook(fromid varchar(225) not null,toid varchar(225) not null,strength float not null,index(fromid))
+        create table hiddentobook(fromid varchar(225) not null,toid varchar(225) not null,strength float not null)
         '''
         hiddenthreshold_sql = '''
-        create table if not exists hiddenthreshold(nodeid varchar(225) not null,strength float not null)
+        create table hiddenthreshold(nodeid varchar(225) not null,strength float not null)
         '''
         bookthreshold_sql = '''
-        create table if not exists bookthreshold(nodeid varchar(225) not null,strength float not null)
+        create table bookthreshold(nodeid varchar(225) not null,strength float not null)
         '''
         self._db.create_table(hiddennode_sql, "hiddennode")
         self._db.create_table(filmtohidden_sql, "filmtohidden")
         self._db.create_table(hiddentobook_sql, "hiddentobook")
         self._db.create_table(hiddenthreshold_sql, "hiddenthreshold")
         self._db.create_table(bookthreshold_sql, "bookthreshold")
+        self._db.create_index("filmtohidden", "fromid", "filmid")
+        self._db.create_index("hiddentobook", "toid", "bookid")
 
     def clean_tables(self):
         '''
@@ -172,7 +172,6 @@ class BPNetwork(object):
             :param films：电影列表
             :param books：书籍列表'''
         hiddennodelist = {}
-        #获取与
         for film in films:
             sql = "select toid from filmtohidden where fromid='%s'"%film
             results = self._db.select_all(sql)

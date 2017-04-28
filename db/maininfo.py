@@ -122,7 +122,7 @@ class MainInfo(object):
         return uid_list
 
     def select_book_name(self, book_id):
-        sql = u"select book_name from prefer_book where book_id='%s' limit 1"%book_id
+        sql = u"select book_name from book_info where book_id='%s' limit 1"%book_id
         result = self._db.select_one(sql)
         return result[0]
 
@@ -141,3 +141,25 @@ class MainInfo(object):
         self._db.execute_sql(sql1, "prefer_book roll back")
         self._db.execute_sql(sql2, "prefer_film roll back")
 
+    def create_info_table(self):
+        '''
+        :summary:建立记录书籍信息和电影信息的表
+        '''
+        sql1 = '''
+        create table book_info(book_id varchar(225) not null,book_name varchar(225) not null)
+        '''
+        sql2 = '''
+        create table film_info(film_id varchar(225) not null,film_name varchar(225) not null)
+        '''
+        self._db.create_table(sql1, "book_info")
+        self._db.create_table(sql2, "film_info")
+
+        select_sql = "select book_id,book_name from prefer_book group by book_id,book_name"
+        results = self._db.select_all(select_sql)
+        insert_sql = "insert into book_info (book_id,book_name) values (%s,%s)"
+        self._db.change_many(insert_sql, results)
+
+        select_sql = "select film_id,film_name from prefer_film group by film_id,film_name"
+        results = self._db.select_all(select_sql)
+        insert_sql = "insert into film_info (film_id,film_name) values (%s,%s)"
+        self._db.change_many(insert_sql, results)

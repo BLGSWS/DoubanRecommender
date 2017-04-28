@@ -20,6 +20,7 @@ class APIs(object):
         database = DataBase()
         self._db = MainInfo(database)
         self._net = BPNetwork(database)
+        self._net.create_tables()
 
         self.first_film_content = None
         self.first_book_content = None
@@ -163,6 +164,7 @@ def train_by_order(uid_list=None):
     database = DataBase()
     _net = BPNetwork(database)
     _db = MainInfo(database)
+    _net.create_tables()
     if not uid_list:
         uid_list = _db.get_uid_list()
         print len(uid_list)
@@ -177,14 +179,14 @@ def train_by_order(uid_list=None):
         else:
             print uid+" skip"
 
-def get_outputs(filmids, filename=None):
+def get_outputs(filmids, db="sqlite", filename=None):
     '''
     接受一组电影，输出高于0.615分的书籍
     :param filmids:电影id（数组）
     :param filename:存储文件名
     :return:
     '''
-    database = DataBase()
+    database = DataBase(db)
     _db = MainInfo(database)
     _net = BPNetwork(database)
 
@@ -215,12 +217,9 @@ def get_outputs(filmids, filename=None):
         if filename != None:
             myfile.write(book_name.encode("utf-8"))
             myfile.write(";%s;%s\n"%(outputs[j][0], outputs[j][1]))
-    def get_results():
-        _mi = Minitor("avg_res.txt")
-        _mi.get_output_by_array(head_output)
-        results = _mi.get_results(30, 2)
-        return results
-    results = get_results()
+    _mi = Minitor("avg_res.txt")
+    _mi.get_output_by_array(head_output)
+    results = _mi.get_results(30, 2)
     return results
 
 def get_avg_results():
@@ -228,9 +227,9 @@ def get_avg_results():
     获取平均结果
     大于0.6的平均结果按大小排序
     '''
-    database = DataBase()
-    _db = MainInfo(database)
-    _net = BPNetwork(database)
+    _database = DataBase()
+    _db = MainInfo(_database)
+    _net = BPNetwork(_database)
 
     all_films = _db.select_prefer_film()
     results = _net.get_results(all_films)
@@ -253,5 +252,55 @@ def get_avg_results():
             myfile.write(book_name.encode("utf-8"))
             myfile.write(";%s;%s\n"%(books[k][0], books[k][1]))
 
+def copy_data():
+    '''
+    :summary:从mysql复制数据到sqlite，暂时先这样写
+    '''
+    mysql = DataBase(db="mysql")
+    sqlite = DataBase(db="sqlite")
+    network = BPNetwork(sqlite)
+
+    network.create_tables()
+    sql1 = '''
+    create table book_info(book_id varchar(225) not null,book_name varchar(225) not null)
+    '''
+    sql2 = '''
+    create table film_info(film_id varchar(225) not null,film_name varchar(225) not null)
+    '''
+    sqlite.create_table(sql1, "book_info")
+    sqlite.create_table(sql2, "film_info")
+
+    select_sql = "select * from book_info"
+    results = mysql.select_all(select_sql)
+    insert_sql = "insert into book_info (book_id,book_name) values (%s,%s)"
+    sqlite.change_many(insert_sql, results)
+
+    select_sql = "select * from film_info"
+    results = mysql.select_all(select_sql)
+    insert_sql = "insert into film_info (film_id,film_name) values (%s,%s)"
+    sqlite.change_many(insert_sql, results)
+
+    '''filmtohiddens = "select * from filmtohidden"
+    results = mysql.select_all(filmtohiddens)
+    sql = "insert into filmtohidden (fromid,toid,strength) values (%s,%s,%s)"
+    sqlite.change_many(sql, results)
+    hiddentobooks = "select * from hiddentobook"
+    results = mysql.select_all(hiddentobooks)
+    sql = "insert into hiddentobook (fromid,toid,strength) values (%s,%s,%s)"
+    sqlite.change_many(sql, results)
+    hiddennodes = "select uid from hiddennode"
+    results = mysql.select_all(hiddennodes)
+    sql = "insert into hiddennode (uid) values (%s)"
+    sqlite.change_many(sql, results)
+    hiddenthresholds = "select * from hiddenthreshold"
+    results = mysql.select_all(hiddenthresholds)
+    sql = "insert into hiddenthreshold (nodeid,strength) values (%s,%s)"
+    sqlite.change_many(sql, results)
+    bookthresholds = "select * from bookthreshold"
+    results = mysql.select_all(bookthresholds)
+    sql = "insert into bookthreshold (nodeid,strength) values (%s,%s)"
+    sqlite.change_many(sql, results)
+    print "Database: copy data success!"'''
+
 if __name__ == '__main__':
-    get_avg_results()
+    copy_data()
