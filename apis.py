@@ -8,10 +8,17 @@ import threading
 from spider.urltool import UrlFix as ufx
 from spider.requester import Requester
 from spider.solver import BFSolver as sl
-from db.sqldb import DataBase
 from db.maininfo import MainInfo
 from bpnetwork.minitor import Minitor
 from bpnetwork.network import BPNetwork
+import ConfigParser
+
+PARSER = ConfigParser.ConfigParser()
+PARSER.read("db/config.cfg")
+if "mysql" == PARSER.get("DB_Config", "database_type"):
+    from db.sqldb import MySqlDataBase as DataBase
+else:
+    from db.sqldb import SqliteDataBase as DataBase
 
 class APIs(object):
 
@@ -179,14 +186,14 @@ def train_by_order(uid_list=None):
         else:
             print uid+" skip"
 
-def get_outputs(filmids, db="sqlite", filename=None):
+def get_outputs(filmids, filename=None):
     '''
     接受一组电影，输出高于0.615分的书籍
     :param filmids:电影id（数组）
     :param filename:存储文件名
     :return:
     '''
-    database = DataBase(db)
+    database = DataBase()
     _db = MainInfo(database)
     _net = BPNetwork(database)
 
@@ -256,8 +263,8 @@ def copy_data():
     '''
     :summary:从mysql复制数据到sqlite，暂时先这样写
     '''
-    mysql = DataBase(db="mysql")
-    sqlite = DataBase(db="sqlite")
+    mysql = DataBase()
+    sqlite = DataBase()
     network = BPNetwork(sqlite)
 
     network.create_tables()

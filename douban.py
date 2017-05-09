@@ -25,6 +25,6 @@ if __name__ == '__main__':
     #美国队长3，金刚狼3， 钢铁侠， 奇异博士， 复仇者联盟， x-man:逆转未来
     #情书， 蓝色大门， 牯岭街， 怦然心动， 四月物语
     prefer_film_list = ["1292220", "1308575", "1292371", "3319755", "1292371"]
-    apis.get_outputs(prefer_film_list, db="sqlite", filename="res_6.txt")
+    apis.get_outputs(prefer_film_list, filename="res_6.txt")
 
 
