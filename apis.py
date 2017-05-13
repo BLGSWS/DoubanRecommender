@@ -4,6 +4,7 @@ import time
 import random
 import Queue
 import threading
+import ConfigParser
 
 from spider.urltool import UrlFix as ufx
 from spider.requester import Requester
@@ -11,11 +12,11 @@ from spider.solver import BFSolver as sl
 from db.maininfo import MainInfo
 from bpnetwork.minitor import Minitor
 from bpnetwork.network import BPNetwork
-import ConfigParser
+import db.sqldb as sqldb
 
 PARSER = ConfigParser.ConfigParser()
 PARSER.read("db/config.cfg")
-if "mysql" == PARSER.get("DB_Config", "database_type"):
+if PARSER.get("DB_Config", "database_type") == "mysql":
     from db.sqldb import MySqlDataBase as DataBase
 else:
     from db.sqldb import SqliteDataBase as DataBase
@@ -261,53 +262,19 @@ def get_avg_results():
 
 def copy_data():
     '''
-    :summary:从mysql复制数据到sqlite，暂时先这样写
+    :summary:从mysql复制数据到sqlite
     '''
-    mysql = DataBase()
-    sqlite = DataBase()
-    network = BPNetwork(sqlite)
-
+    db = DataBase()
+    network = BPNetwork(db)
     network.create_tables()
-    sql1 = '''
-    create table book_info(book_id varchar(225) not null,book_name varchar(225) not null)
-    '''
-    sql2 = '''
-    create table film_info(film_id varchar(225) not null,film_name varchar(225) not null)
-    '''
-    sqlite.create_table(sql1, "book_info")
-    sqlite.create_table(sql2, "film_info")
+    #network.clean_tables()
 
-    select_sql = "select * from book_info"
-    results = mysql.select_all(select_sql)
-    insert_sql = "insert into book_info (book_id,book_name) values (%s,%s)"
-    sqlite.change_many(insert_sql, results)
-
-    select_sql = "select * from film_info"
-    results = mysql.select_all(select_sql)
-    insert_sql = "insert into film_info (film_id,film_name) values (%s,%s)"
-    sqlite.change_many(insert_sql, results)
-
-    '''filmtohiddens = "select * from filmtohidden"
-    results = mysql.select_all(filmtohiddens)
-    sql = "insert into filmtohidden (fromid,toid,strength) values (%s,%s,%s)"
-    sqlite.change_many(sql, results)
-    hiddentobooks = "select * from hiddentobook"
-    results = mysql.select_all(hiddentobooks)
-    sql = "insert into hiddentobook (fromid,toid,strength) values (%s,%s,%s)"
-    sqlite.change_many(sql, results)
-    hiddennodes = "select uid from hiddennode"
-    results = mysql.select_all(hiddennodes)
-    sql = "insert into hiddennode (uid) values (%s)"
-    sqlite.change_many(sql, results)
-    hiddenthresholds = "select * from hiddenthreshold"
-    results = mysql.select_all(hiddenthresholds)
-    sql = "insert into hiddenthreshold (nodeid,strength) values (%s,%s)"
-    sqlite.change_many(sql, results)
-    bookthresholds = "select * from bookthreshold"
-    results = mysql.select_all(bookthresholds)
-    sql = "insert into bookthreshold (nodeid,strength) values (%s,%s)"
-    sqlite.change_many(sql, results)
-    print "Database: copy data success!"'''
+    sqldb.copy_data(["fromid", "toid", "strength"], "filmtohiddens", "filmtohiddens")
+    sqldb.copy_data(["fromid", "toid", "strength"], "hiddentobook", "hiddentobook")
+    sqldb.copy_data(["uid"], "hiddennode", "hiddennode")
+    sqldb.copy_data(["nodeid", "strength"], "hiddenthresholds", "hiddenthresholds")
+    sqldb.copy_data(["nodeid", "strength"], "bookthresholds", "bookthresholds")
+    print "Database: copy data success!"
 
 if __name__ == '__main__':
     copy_data()

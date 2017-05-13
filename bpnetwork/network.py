@@ -35,7 +35,7 @@ class BPNetwork(object):
 
     def __init__(self, database):
         self._db = database
-        #self.__create_tables()
+        #self.create_tables()
 
         self.uid = None
         self.step = None#下降步长

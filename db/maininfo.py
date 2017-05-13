@@ -1,4 +1,5 @@
 #coding:utf-8
+from sqldb import SqliteDataBase,MySqlDataBase
 
 class MainInfo(object):
 
@@ -151,15 +152,11 @@ class MainInfo(object):
         sql2 = '''
         create table film_info(film_id varchar(225) not null,film_name varchar(225) not null)
         '''
+        sqlite = SqliteDataBase()
+        sqlite.create_table(sql1, "book_info")
+        sqlite.create_table(sql2, "film_info")
         self._db.create_table(sql1, "book_info")
-        self._db.create_table(sql2, "film_info")
+        self._db.create_table(sql2, "book_info")
 
-        select_sql = "select book_id,book_name from prefer_book group by book_id,book_name"
-        results = self._db.select_all(select_sql)
-        insert_sql = "insert into book_info (book_id,book_name) values (%s,%s)"
-        self._db.change_many(insert_sql, results)
-
-        select_sql = "select film_id,film_name from prefer_film group by film_id,film_name"
-        results = self._db.select_all(select_sql)
-        insert_sql = "insert into film_info (film_id,film_name) values (%s,%s)"
-        self._db.change_many(insert_sql, results)
+        self.copy_data(["book_id", "book_name"], "prefer_film", "film_info")
+        self.copy_data(["film_id", "film_name"], "prefer_film", "film_info")

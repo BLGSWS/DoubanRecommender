@@ -271,5 +271,23 @@ class SqliteDataBase(object):
         except:
             raise
 
+def copy_data(columns, fromtable, totable):
+    '''
+    :summary:将mysql表中的内容转移到sqlite中
+    '''
+    mysql = MySqlDataBase()
+    sqlite = SqliteDataBase()
+    col_str = ",".join(columns)
+    sql = "select %s from %s group by %s"%(col_str, fromtable, col_str[0])
+    results = mysql.select_all(sql)
+    str_list = []
+    for _ in xrange(len(columns)):
+        str_list.append("%s")
+    s_str = ",".join(str_list)
+    sql = '''
+    insert into %s (%s) values (%s)
+    '''%(totable, col_str, s_str)
+    sqlite.change_many(sql, results)
+
 if __name__ == '__main__':
     pass
