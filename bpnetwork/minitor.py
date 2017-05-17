@@ -150,7 +150,7 @@ class Minitor(object):
         for i in xrange(n):
             if isinstance(results[i][0], str):
                 results[i][0] = results[i][0].decode("utf-8")
-            print results[i][0], results[i][1], results[i][2]
+            #print results[i][0], results[i][1], results[i][2]
         self.errors = errors+np.ones(errors.shape[0])*0.60
         return results
 

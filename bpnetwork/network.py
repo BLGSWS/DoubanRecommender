@@ -1,10 +1,6 @@
 #coding:utf-8
-from warnings import filterwarnings
 import math
-import MySQLdb
 import numpy as np
-
-filterwarnings('error', category = MySQLdb.Warning)
 
 def sigmoid(x):
     if not isinstance(x, np.ndarray):
