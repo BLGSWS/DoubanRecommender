@@ -6,8 +6,7 @@ import Queue
 import threading
 import ConfigParser
 
-from spider.urltool import UrlFix as ufx
-from spider.requester import Requester
+from spider.requester import Requester,UrlFix
 from spider.solver import BFSolver as sl
 from db.maininfo import MainInfo
 from bpnetwork.minitor import Minitor
@@ -21,7 +20,25 @@ if PARSER.get("DB_Config", "database_type") == "mysql":
 else:
     from db.sqldb import SqliteDataBase as DataBase
 
-class APIs(object):
+class ThreadScrapy(threading.Thread):
+
+    def __init__(self, api):
+        threading.Thread.__init__(self)
+        self.api = api
+
+    def run(self):
+        self.api.scrapy_prefer_page()
+
+class ThreadTrain(threading.Thread):
+
+    def __init__(self, api):
+        threading.Thread.__init__(self)
+        self.api = api
+
+    def run(self):
+        self.api.train()
+
+class Recmmomend(object):
 
     def __init__(self):
         self._req = Requester("spider/Cookie/Cookie0.txt")
@@ -97,8 +114,8 @@ class APIs(object):
         :param uid:用户uid
         :return:
         '''
-        film_page = ufx.creat_first_preferfilmpage(uid)
-        book_page = ufx.creat_first_preferbookpage(uid)
+        film_page = UrlFix.creat_first_preferfilmpage(uid)
+        book_page = UrlFix.creat_first_preferbookpage(uid)
         self.first_film_content = self._req.get_page_with_header(film_page)
         time.sleep(random.uniform(1.5, 2))
         self.first_book_content = self._req.get_page_with_header(book_page)
@@ -127,9 +144,9 @@ class APIs(object):
             else:
                 print "train: %s end"%uid
 
-def scrapy_film_value_page(film_id):
+def scrapy_film_value_page(film_id, user_num):
     '''
-    从电影短评区取得用户列表,尽量选择大家都看过的电影
+    从电影短评区取得用户列表
     :param film_id:电影id
     '''
     #建表
@@ -140,10 +157,12 @@ def scrapy_film_value_page(film_id):
     _req = Requester("spider/Cookie/Cookie1.txt")
 
     #抓取第一页
-    forehead = ufx.creat_filmpage_forehead(film_id)
-    first_page = ufx.creat_film_ref(film_id)
+    forehead = UrlFix.creat_filmpage_forehead(film_id)
+    first_page = UrlFix.creat_film_ref(film_id)
     content = _req.get_page_with_header(first_page)
     num = sl.get_active(content)
+    if num > user_num:
+        num = user_num
     print "total values:"+num
     count = int(num)/20
 
@@ -158,8 +177,7 @@ def scrapy_film_value_page(film_id):
         except Exception:
         #异常处理
             time.sleep(random.uniform(10, 14))
-            print "loop times: "+str(i)
-            raise
+            print "error in loop times: "+str(i)
         else:
             page = forehead+next_page
             time.sleep(random.uniform(2, 4))#每分钟40以下次请求
@@ -187,7 +205,7 @@ def train_by_order(uid_list=None):
         else:
             print uid+" skip"
 
-def get_outputs(filmids, filename=None):
+def get_outputs(filmids):
     '''
     接受一组电影，输出高于0.615分的书籍
     :param filmids:电影id（数组）
@@ -214,17 +232,11 @@ def get_outputs(filmids, filename=None):
         limit = float(maxvalue)
         i += 1
     #纪录前n项输出
-    if filename != None:
-        myfile = file("bpnetwork/Logging/"+filename, "a+")
-        myfile.write("#"+str(filmids)+"\n")
     head_output = []
     for j in xrange(i):
         book_name = _db.select_book_name(outputs[j][0])
         #[book_name, book_id, book_value]
         head_output.append([book_name, outputs[j][0], outputs[j][1]])
-        if filename != None:
-            myfile.write(book_name.encode("utf-8"))
-            myfile.write(";%s;%s\n"%(outputs[j][0], outputs[j][1]))
     _mi = Minitor("avg_res.txt")
     _mi.get_output_by_array(head_output)
     results = _mi.get_results(30, 2)
@@ -275,6 +287,15 @@ def copy_data():
     sqldb.copy_data(["nodeid", "strength"], "hiddenthresholds", "hiddenthresholds")
     sqldb.copy_data(["nodeid", "strength"], "bookthresholds", "bookthresholds")
     print "Database: copy data success!"
+
+def clean_data(cmd):
+    db = DataBase()
+    nn_tables = ["filmtohiddens", "hiddentobook", "hiddenthresholds", "bookthresholds"]
+    data_tables = ["prefer_film", "prefer_book", "user_info"]
+    if cmd == "train":
+        db.clean_tables(nn_tables)
+    elif cmd == "data":
+        db.clean_tables(data_tables)
 
 if __name__ == '__main__':
     copy_data()

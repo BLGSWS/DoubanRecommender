@@ -2,40 +2,31 @@
 
 import os
 import sys
-import apis
-from apis import APIs
-#from mutiltask import ProcessScrapy, ProcessTrain
-from multitask import ThreadScrapy, ThreadTrain
+import recommend
+from recommend import Recmmomend, ThreadScrapy, ThreadTrain
 
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 
 if __name__ == '__main__':
-    '''api = APIs()
-    thread_scrapy = ThreadScrapy(api)
-    thread_train = ThreadTrain(api)
-    thread_scrapy.start()
-    thread_train.start()
-    thread_scrapy.join()
-    thread_train.join()'''
-    #api = APIs()
-    #api.scrapy_prefer_page()
-    #apis.scrapy_film_value_page("1292052")
-    #apis.train_by_order()
-    #apis.train_by_order()
-    #美国队长3，金刚狼3， 钢铁侠， 奇异博士， 复仇者联盟， x-man:逆转未来
-    #情书， 蓝色大门， 牯岭街， 怦然心动， 四月物语
-    with file("info.txt", "r") as myfile:
-        while True:
-            films = myfile.readline()
-            if films[0] != "#":
-                break
-        film_list = films.split(",")
-    results = apis.get_outputs(film_list, filename="res_6.txt")
-    with file("info.txt", "a+") as myfile:
-        myfile.write("/n")
-        for result in results:
-            info = u"%s,%s,%s\n"%(result[0], result[1], result[2])
-            myfile.write(info.encode("utf-8"))
-    os.system("pause")
+    results = []
+    while(1):
+        text = raw_input()
+        content = text.split(" ")
+        if "-r" in content[0]:
+            num = content[1]
+            film_list = content[-1].split(",")
+            results = recommend.get_outputs(film_list)
+            for i in xrange(1, int(num)):
+                print results[i][0], results[i][1], results[i][2]
+        elif "-q" in content[0]:
+            exit()
+        elif "-log" in content[0]:
+            filename = content[1]
+            with file(filename, "w") as myfile:
+                for result in results:
+                    myfile.write(result[0].encode("utf-8"))
+                    myfile.write(";%s;%s\n"%(result[1], result[2]))
+        else:
+            print "no such command"
 
 
